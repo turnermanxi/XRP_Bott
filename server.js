@@ -21,19 +21,20 @@ const SMA_PERIOD_LONG = 50;
 let lastBuyPrice = null;
 
 // Function to create Kraken API headers
-function createKrakenHeaders(path, body) {
-  const nonce = Date.now() * 1000;
-  const postData = `nonce=${nonce}&${body}`; // Use this as the payload
-  const hash = crypto.createHash("sha256").update(postData).digest(); // Hash postData
+function createKrakenHeaders(path, body, nonce) {
+  const postData = `nonce=${nonce}&${body}`;
+  const hash = crypto.createHash("sha256").update(postData).digest();
   const secretBuffer = Buffer.from(API_SECRET, "base64");
-  const hmac = crypto.createHmac("sha512", secretBuffer)
-    .update(path + hash) // Combine path and hashed postData
+  const hmac = crypto
+    .createHmac("sha512", secretBuffer)
+    .update(path + hash)
     .digest("base64");
 
   return {
     "API-Key": API_KEY,
-    "API-Sign": hmac, // Signature based on postData
-    "Content-Type": "application/x-www-form-urlencoded",
+    "API-Sign": hmac,
+    "Content-Type": "application/json",
+    "Accept": "application/json",
   };
 }
 
@@ -94,35 +95,31 @@ function adjustStrategy(trend) {
 }
 
 // Place buy/sell order
-async function placeOrder(orderType, volume) {
+async function placeOrder(orderType, volume, price = null) {
   const nonce = Date.now() * 1000;
 
-  // Create the body using URLSearchParams for proper formatting
-  const bodyParams = new URLSearchParams({
+  const orderDetails = {
     nonce: nonce.toString(),
-    pair: TRADE_PAIR,
-    type: orderType, // e.g., "buy" or "sell"
-    ordertype: "market",
+    ordertype: price ? "limit" : "market", // Use limit if price is specified
+    type: orderType, // "buy" or "sell"
     volume: volume.toString(),
-  });
+    pair: TRADE_PAIR,
+  };
 
-  const body = bodyParams.toString(); // Convert to x-www-form-urlencoded format
+  if (price) orderDetails.price = price; // Add price for limit orders
 
-  // Pass the body string to createKrakenHeaders
-  const headers = createKrakenHeaders("/0/private/AddOrder", body);
+  const body = JSON.stringify(orderDetails);
+  const headers = createKrakenHeaders("/0/private/AddOrder", body, nonce);
 
   try {
-    // Send the API request
     const response = await axios.post(
       `${KRAKEN_API_URL}${KRAKEN_API_VERSION}/private/AddOrder`,
-      body, // Use body (URL-encoded)
+      body,
       { headers }
     );
 
-    
     console.log(`${orderType.toUpperCase()} order placed:`, response.data);
   } catch (error) {
-    // Handle and log errors
     console.error(`${orderType.toUpperCase()} order failed:`, error.response?.data?.error || error.message);
   }
 }
