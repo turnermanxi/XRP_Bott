@@ -3,8 +3,8 @@ require("dotenv").config();
 const crypto = require("crypto");
 
 // API credentials
-const API_KEY = "/pnozBOkRzhBhTo+1Ky0LDcXjECfrY04COjepFQ1AXrUSVyAfRUIR0k0";
-const API_SECRET = "npJ2KKqcA6ARQO8YtQViBMSj3Lsvanmw3y8w/9vKDz0TFfHVZf7yTvMZuaTP+wyT/X1yPhqK7zCgeEMMqt349Q==";
+const API_KEY = process.env.API_KEY;
+const API_SECRET = process.env.API_SECRET;
 
 // Kraken API configuration
 const KRAKEN_API_URL = "https://api.kraken.com";
@@ -100,23 +100,35 @@ function adjustStrategy(trend) {
   }
 }
 
+let lastNonce = 0;
+
+function getNonce() {
+  const newNonce = Date.now() * 1000;
+  if (newNonce <= lastNonce) {
+    return lastNonce + 1;
+  }
+  lastNonce = newNonce;
+  return newNonce;
+}
+
 // Place buy/sell order
 async function placeOrder(orderType, volume, price = null) {
-  const nonce = Date.now() * 1000;
+  const nonce = getNonce();
 
-  const bodyParams = new URLSearchParams({
+  const orderDetails = {
     nonce: nonce.toString(),
     ordertype: price ? "limit" : "market",
     type: orderType,
     volume: volume.toString(),
     pair: TRADE_PAIR,
-  });
+  };
 
-  if (price) {
-    bodyParams.append("price", price.toString());
-  }
+  if (price) orderDetails.price = price;
 
-  const body = bodyParams.toString();
+  const body = Object.entries(orderDetails)
+    .map(([key, val]) => `${key}=${encodeURIComponent(val)}`)
+    .join("&");
+
   const headers = createKrakenHeaders("/0/private/AddOrder", body, nonce);
 
   try {
@@ -125,7 +137,6 @@ async function placeOrder(orderType, volume, price = null) {
       body,
       { headers }
     );
-
     console.log(`${orderType.toUpperCase()} order placed:`, response.data);
   } catch (error) {
     console.error(
@@ -134,6 +145,7 @@ async function placeOrder(orderType, volume, price = null) {
     );
   }
 }
+
 
 // Main trading bot logic
 async function main() {
