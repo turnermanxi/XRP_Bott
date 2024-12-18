@@ -2,12 +2,15 @@ const axios = require("axios");
 require("dotenv").config();
 const crypto = require("crypto");
 
+// API credentials
 const API_KEY = process.env.KRAKEN_API_KEY;
 const API_SECRET = process.env.KRAKEN_API_SECRET;
 
+// Kraken API configuration
 const KRAKEN_API_URL = "https://api.kraken.com";
 const KRAKEN_API_VERSION = "/0";
 
+// Trading parameters
 const TRADE_PAIR = "XXRPZUSD"; // XRP/USD trading pair
 const TRADE_AMOUNT = 15; // Amount of XRP to trade
 let BUY_PERCENTAGE_DROP = 0.75; // Default buy threshold
@@ -22,6 +25,10 @@ let lastBuyPrice = null;
 
 // Function to create Kraken API headers
 function createKrakenHeaders(path, body, nonce) {
+  if (!API_KEY || !API_SECRET) {
+    throw new Error("API_KEY or API_SECRET is missing or undefined!");
+  }
+
   const postData = `nonce=${nonce}&${body}`;
   const hash = crypto.createHash("sha256").update(postData).digest();
   const secretBuffer = Buffer.from(API_SECRET, "base64");
@@ -33,8 +40,7 @@ function createKrakenHeaders(path, body, nonce) {
   return {
     "API-Key": API_KEY,
     "API-Sign": hmac,
-    "Content-Type": "application/json",
-    "Accept": "application/json",
+    "Content-Type": "application/x-www-form-urlencoded",
   };
 }
 
@@ -98,17 +104,19 @@ function adjustStrategy(trend) {
 async function placeOrder(orderType, volume, price = null) {
   const nonce = Date.now() * 1000;
 
-  const orderDetails = {
+  const bodyParams = new URLSearchParams({
     nonce: nonce.toString(),
-    ordertype: price ? "limit" : "market", // Use limit if price is specified
-    type: orderType, // "buy" or "sell"
+    ordertype: price ? "limit" : "market",
+    type: orderType,
     volume: volume.toString(),
     pair: TRADE_PAIR,
-  };
+  });
 
-  if (price) orderDetails.price = price; // Add price for limit orders
+  if (price) {
+    bodyParams.append("price", price.toString());
+  }
 
-  const body = JSON.stringify(orderDetails);
+  const body = bodyParams.toString();
   const headers = createKrakenHeaders("/0/private/AddOrder", body, nonce);
 
   try {
@@ -120,10 +128,12 @@ async function placeOrder(orderType, volume, price = null) {
 
     console.log(`${orderType.toUpperCase()} order placed:`, response.data);
   } catch (error) {
-    console.error(`${orderType.toUpperCase()} order failed:`, error.response?.data?.error || error.message);
+    console.error(
+      `${orderType.toUpperCase()} order failed:`,
+      error.response?.data?.error || error.message
+    );
   }
 }
-
 
 // Main trading bot logic
 async function main() {
