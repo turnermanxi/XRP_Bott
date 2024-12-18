@@ -119,7 +119,7 @@ async function placeOrder(orderType, volume) {
       { headers }
     );
 
-    // Log the response for success
+    
     console.log(`${orderType.toUpperCase()} order placed:`, response.data);
   } catch (error) {
     // Handle and log errors
