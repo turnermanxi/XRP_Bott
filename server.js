@@ -10,8 +10,8 @@ const KRAKEN_API_VERSION = "/0";
 
 const TRADE_PAIR = "XXRPZUSD";  // XRP/USD trading pair
 const TRADE_AMOUNT = 15;  // Amount of XRP to trade
-const BUY_PERCENTAGE_DROP = .75;  // 2% drop to trigger buy
-const SELL_PERCENTAGE_RISE = 2;  // 2% rise to trigger sell
+const BUY_PERCENTAGE_DROP = 1;  // 2% drop to trigger buy
+const SELL_PERCENTAGE_RISE = 1.5;  // 2% rise to trigger sell
 const SMA_PERIOD_SHORT = 14;  // Short term SMA period
 const SMA_PERIOD_LONG = 50;  // Long term SMA period
 
