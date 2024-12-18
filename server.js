@@ -3,8 +3,8 @@ require("dotenv").config();
 const crypto = require("crypto");
 
 // API credentials
-const API_KEY = process.env.API_KEY;
-const API_SECRET = process.env.API_SECRET;
+const API_KEY = process.env.KRAKEN.API_KEY;
+const API_SECRET = process.env.KRAKEN.API_SECRET;
 
 // Kraken API configuration
 const KRAKEN_API_URL = "https://api.kraken.com";
