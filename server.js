@@ -23,18 +23,17 @@ let lastBuyPrice = null;
 // Function to create Kraken API headers
 function createKrakenHeaders(path, body) {
   const nonce = Date.now() * 1000;
-  const message = nonce + body;
+  const postData = `nonce=${nonce}&${body}`; // Use this as the payload
+  const hash = crypto.createHash("sha256").update(postData).digest(); // Hash postData
   const secretBuffer = Buffer.from(API_SECRET, "base64");
-  const hash = crypto.createHash("sha256").update(message).digest();
-  const hmac = crypto
-    .createHmac("sha512", secretBuffer)
-    .update(path + hash)
+  const hmac = crypto.createHmac("sha512", secretBuffer)
+    .update(path + hash) // Combine path and hashed postData
     .digest("base64");
 
   return {
     "API-Key": API_KEY,
-    "API-Sign": hmac,
-    "Content-Type": "application/json",
+    "API-Sign": hmac, // Signature based on postData
+    "Content-Type": "application/x-www-form-urlencoded",
   };
 }
 
@@ -96,20 +95,38 @@ function adjustStrategy(trend) {
 
 // Place buy/sell order
 async function placeOrder(orderType, volume) {
-  const url = `${KRAKEN_API_URL}${KRAKEN_API_VERSION}/private/AddOrder`;
-  const body = new URLSearchParams({
-    nonce: Date.now() * 1000,
+  const nonce = Date.now() * 1000;
+
+  // Create the body using URLSearchParams for proper formatting
+  const bodyParams = new URLSearchParams({
+    nonce: nonce.toString(),
     pair: TRADE_PAIR,
-    type: orderType, // "buy" or "sell"
+    type: orderType, // e.g., "buy" or "sell"
     ordertype: "market",
     volume: volume.toString(),
-  }).toString();
+  });
 
+  const body = bodyParams.toString(); // Convert to x-www-form-urlencoded format
+
+  // Pass the body string to createKrakenHeaders
   const headers = createKrakenHeaders("/0/private/AddOrder", body);
 
-  const response = await axios.post(url, body, { headers });
-  console.log(`${orderType.toUpperCase()} order placed:`, response.data);
+  try {
+    // Send the API request
+    const response = await axios.post(
+      `${KRAKEN_API_URL}${KRAKEN_API_VERSION}/private/AddOrder`,
+      body, // Use body (URL-encoded)
+      { headers }
+    );
+
+    // Log the response for success
+    console.log(`${orderType.toUpperCase()} order placed:`, response.data);
+  } catch (error) {
+    // Handle and log errors
+    console.error(`${orderType.toUpperCase()} order failed:`, error.response?.data?.error || error.message);
+  }
 }
+
 
 // Main trading bot logic
 async function main() {
