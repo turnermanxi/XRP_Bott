@@ -25,24 +25,20 @@ let lastBuyPrice = null;
 
 // Function to create Kraken API headers
 function createKrakenHeaders(path, body, nonce) {
-  if (!API_KEY || !API_SECRET) {
-    throw new Error("API_KEY or API_SECRET is missing or undefined!");
-  }
-
-  const postData = `nonce=${nonce}&${body}`;
-  const hash = crypto.createHash("sha256").update(postData).digest();
+  const postData = `${nonce}${body}`;
+  const hash = crypto.createHash("sha256").update(postData).digest("binary");
   const secretBuffer = Buffer.from(API_SECRET, "base64");
   const hmac = crypto
     .createHmac("sha512", secretBuffer)
-    .update(path + hash)
+    .update(path + hash, "binary")
     .digest("base64");
 
   return {
     "API-Key": API_KEY,
     "API-Sign": hmac,
-    "Content-Type": "application/x-www-form-urlencoded",
   };
 }
+
 
 // Fetch current market price
 async function fetchMarketPrice() {
@@ -145,7 +141,6 @@ async function placeOrder(orderType, volume, price = null) {
     );
   }
 }
-
 
 // Main trading bot logic
 async function main() {
