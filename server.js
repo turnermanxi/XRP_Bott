@@ -39,7 +39,6 @@ function createKrakenHeaders(path, body, nonce) {
   };
 }
 
-
 // Fetch current market price
 async function fetchMarketPrice() {
   const response = await axios.get(
