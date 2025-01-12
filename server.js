@@ -142,6 +142,7 @@ async function placeOrder(orderType, volume, price = null) {
 }
 
 // Main trading bot logic
+// Adjusted trading logic with the updated strategy
 async function main() {
   try {
     console.log("Fetching current market price...");
@@ -157,26 +158,46 @@ async function main() {
 
     // Determine market trend and adjust strategy
     const trend = analyzeTrend(historicalData);
-    adjustStrategy(trend);
 
-    // Trading logic
-    const buyThreshold = lastBuyPrice
-      ? lastBuyPrice * (1 - BUY_PERCENTAGE_DROP / 100)
+    // Thresholds for the strategy
+    const sellThreshold5 = lastBuyPrice ? lastBuyPrice * 1.05 : null; // 5% above last buy price
+    const sellThreshold15 = lastBuyPrice ? lastBuyPrice * 1.15 : null; // 15% above last buy price
+    const buyThreshold = lastSellPrice
+      ? lastSellPrice * 0.96 // 4% below last sell price
       : marketPrice * (1 - BUY_PERCENTAGE_DROP / 100);
-    const sellThreshold = lastBuyPrice
-      ? lastBuyPrice * (1 + SELL_PERCENTAGE_RISE / 100)
-      : marketPrice * (1 + SELL_PERCENTAGE_RISE / 100);
 
-    if (!lastBuyPrice) {
+    // Hold logic for a potential jump above 5%
+    if (marketPrice >= sellThreshold5 && trend === "sharp_up") {
+      console.log("Price is rising sharply; holding for further increase.");
+    } 
+    // Sell logic if price hits 15% increase
+    else if (marketPrice >= sellThreshold15) {
+      console.log(`Price increased 15%. Selling ${TRADE_AMOUNT} XRP...`);
+      await placeOrder("sell", TRADE_AMOUNT);
+      lastSellPrice = marketPrice;
+      lastBuyPrice = null;
+    } 
+    // Buy logic after a 4% drop and trend stabilization
+    else if (
+      lastSellPrice &&
+      marketPrice <= buyThreshold &&
+      trend !== "sharp_down"
+    ) {
+      console.log("Price dropped 4% from last sell price. Buying XRP...");
+      await placeOrder("buy", TRADE_AMOUNT);
+      lastBuyPrice = marketPrice;
+    } 
+    // Regular buy/sell logic
+    else if (!lastBuyPrice) {
       console.log("First buy since no last price. Placing buy order...");
       await placeOrder("buy", TRADE_AMOUNT);
       lastBuyPrice = marketPrice;
     } else if (marketPrice <= buyThreshold && shortSMA < longSMA) {
-      console.log(`Price dropped ${BUY_PERCENTAGE_DROP}%. Buying ${TRADE_AMOUNT} XRP...`);
+      console.log(`Price dropped ${BUY_PERCENTAGE_DROP}%. Buying XRP...`);
       await placeOrder("buy", TRADE_AMOUNT);
       lastBuyPrice = marketPrice;
-    } else if (marketPrice >= sellThreshold && shortSMA > longSMA) {
-      console.log(`Price increased ${SELL_PERCENTAGE_RISE}%. Selling ${TRADE_AMOUNT} XRP...`);
+    } else if (marketPrice >= sellThreshold5 && trend !== "sharp_up") {
+      console.log(`Price increased ${SELL_PERCENTAGE_RISE}%. Selling XRP...`);
       await placeOrder("sell", TRADE_AMOUNT);
       lastBuyPrice = null;
     } else {
